@@ -1,0 +1,72 @@
+services:
+  nginx:
+    container_name: nginx
+    build:
+      context: ./requirements/nginx
+      dockerfile: Dockerfile
+    ports:
+      - "${NGINX_PORT}:${NGINX_PORT}"
+    volumes:
+      - wordpress_files:/var/www/html
+    depends_on:
+      - wordpress
+    networks:
+      - inception_network
+    restart: on-failure
+    env_file:
+      - .env # Load environment variables
+
+  wordpress:
+    container_name: wordpress
+    build:
+      context: ./requirements/wordpress # Path to your WordPress Dockerfile
+      dockerfile: Dockerfile
+      args:
+        DEBIAN_VERSION: "bullseye" # Debian 11 codename
+    image: wordpress_image:1.0
+    volumes:
+      - wordpress_files:/var/www/html # Mount WordPress files from shared volume
+    depends_on:
+      - mariadb
+    networks:
+      - inception_network
+    restart: on-failure
+    env_file:
+      - .env # Load environment variables
+
+  mariadb:
+    container_name: mariadb
+    build:
+      context: ./requirements/mariadb # Path to your MariaDB Dockerfile
+      dockerfile: Dockerfile
+      args:
+        DEBIAN_VERSION: "bullseye" # Debian 11 codename
+    image: mariadb_image:1.0
+    volumes:
+      - mariadb_data:/var/lib/mysql # Volume for database persistence 
+    networks:
+      - inception_network
+    restart: on-failure
+    env_file:
+      - .env # Load environment variables
+
+volumes:
+  mariadb_data:
+    driver: local
+    # Ensure this path matches the requirement for /home/login/data 
+    # You will need to manually create /home/your_login/data/mariadb_data on your host VM.
+    # Replace 'your_login_here' with your actual 42 login.
+    # Example for VM path: /home/your_login_here/data/mariadb_data
+    # This example assumes you'll manage the host path for the volume.
+    # A simpler approach in docker-compose is to just declare the volume without a specific host path,
+    # and Docker will manage it in its default location (usually /var/lib/docker/volumes/...).
+    # If the exact host path is critical for evaluation, ensure you map it correctly.
+    # For now, we'll let Docker manage it, assuming /home/login/data is for *accessing* the volume, not its physical host location.
+  wordpress_files:
+    driver: local
+    # Similarly, for WordPress files 
+    # Example for VM path: /home/your_login_here/data/wordpress_files
+
+networks:
+  inception_network:
+    driver: bridge

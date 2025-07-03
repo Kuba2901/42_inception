@@ -1,0 +1,42 @@
+# srcs/requirements/mariadb/conf/50-server.cnf
+#
+# this is only for the mysqld standalone server
+#
+[mysqld]
+#
+# * Galera-related settings
+#
+#wsrep_on=ON
+#wsrep_provider=/usr/lib/galera/libgalera_smm.so
+#wsrep_cluster_address='gcomm://'
+#binlog_format=ROW
+#default_storage_engine=InnoDB
+#innodb_autoinc_lock_mode=2
+#
+# * Fine Tuning
+#
+key_buffer_size         = 16M
+max_allowed_packet      = 16M
+thread_stack            = 256K
+thread_cache_size       = 8
+# This replaces the old value of
+# "query_cache_limit = 1M".
+#query_cache_limit       = 0
+#query_cache_size        = 0
+
+#
+# * Query Cache configuration
+#
+# This is no longer recommended and is deprecated in recent MySQL/MariaDB versions.
+#query_cache_size = 16M
+
+#
+# * Logging and Error Reporting
+#
+#log_error = /var/log/mysql/error.log
+
+#
+# * Other
+#
+# bind-address setting to allow connections from other containers in the network
+bind-address = 0.0.0.0
