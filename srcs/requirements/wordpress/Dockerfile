@@ -22,9 +22,11 @@ RUN chown -R www-data:www-data /var/www/html && \
 
 RUN mkdir -p /run/php
 
+COPY ./conf/www.conf /etc/php/7.4/fpm/pool.d/www.conf
+
 COPY tools/setup.sh /usr/local/bin/setup.sh
 RUN chmod +x /usr/local/bin/setup.sh
 
-# EXPOSE 9000
+EXPOSE 9000
 
 CMD ["/usr/local/bin/setup.sh"]

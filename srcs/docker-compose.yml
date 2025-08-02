@@ -5,50 +5,56 @@ services:
     ports:
       - "443:443"
       - "80:80"
-    # volumes:
-    #   - wordpress_data:/var/www/html
-    # networks:
-    #   - inception
-    # depends_on:
-    #   - wordpress
-    # restart: unless-stopped
+    volumes:
+      - wordpress_data:/var/www/html
+    networks:
+      - inception
+    depends_on:
+      - wordpress
+    restart: unless-stopped
 
   wordpress:
     build: ./requirements/wordpress
     container_name: wordpress
     volumes:
       - wordpress_data:/var/www/html
-    # networks:
-    #   - inception
-    # depends_on:
-    #   - mariadb
-    # environment:
-    #   - MYSQL_HOST=mariadb
-    #   - MYSQL_DATABASE=${MYSQL_DATABASE}
-    #   - MYSQL_USER=${MYSQL_USER}
-    #   - MYSQL_PASSWORD=${MYSQL_PASSWORD}
-    #   - WP_ADMIN_USER=${WP_ADMIN_USER}
-    #   - WP_ADMIN_PASSWORD=${WP_ADMIN_PASSWORD}
-    #   - WP_ADMIN_EMAIL=${WP_ADMIN_EMAIL}
-    #   - WP_USER=${WP_USER}
-    #   - WP_USER_PASSWORD=${WP_USER_PASSWORD}
-    #   - WP_USER_EMAIL=${WP_USER_EMAIL}
-    #   - DOMAIN_NAME=${DOMAIN_NAME}
-    # restart: unless-stopped
+    networks:
+      - inception
+    depends_on:
+      - mariadb
+    environment:
+      - MYSQL_HOST=mariadb
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - WP_ADMIN_USER=${WP_ADMIN_USER}
+      - WP_ADMIN_PASSWORD=${WP_ADMIN_PASSWORD}
+      - WP_ADMIN_EMAIL=${WP_ADMIN_EMAIL}
+      - WP_USER=${WP_USER}
+      - WP_USER_PASSWORD=${WP_USER_PASSWORD}
+      - WP_USER_EMAIL=${WP_USER_EMAIL}
+      - DOMAIN_NAME=${DOMAIN_NAME}
+    restart: unless-stopped
 
   mariadb:
     build: ./requirements/mariadb
     container_name: mariadb
-  #   volumes:
-  #     - mariadb_data:/var/lib/mysql
-  #   networks:
-  #     - inception
-  #   environment:
-  #     - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
-  #     - MYSQL_DATABASE=${MYSQL_DATABASE}
-  #     - MYSQL_USER=${MYSQL_USER}
-  #     - MYSQL_PASSWORD=${MYSQL_PASSWORD}
-  #   restart: unless-stopped
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    networks:
+      - inception
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u${MYSQL_USER}", "-p${MYSQL_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
 
 volumes:
   wordpress_data:
@@ -58,8 +64,8 @@ volumes:
     #   o: bind
     #   device: ${PWD}/data/wordpress
     #  device: home/${USER}/data/wordpress
-  # mariadb_data:
-  #   driver: local
+  mariadb_data:
+    driver: local
   #   driver_opts:
   #     type: none
   #     o: bind
