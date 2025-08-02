@@ -1,24 +1,30 @@
+# FROM debian:bullseye
+
+# RUN apt-get update && apt-get install -y \
+#     mariadb-server \
+#     mariadb-client \
+#     && rm -rf /var/lib/apt/lists/*
+
+# RUN mkdir -p /var/run/mysqld && \
+#     chown -R mysql:mysql /var/run/mysqld && \
+#     chmod 777 /var/run/mysqld
+
+# COPY tools/setup.sh /usr/local/bin/setup.sh
+# RUN chmod +x /usr/local/bin/setup.sh
+
+# EXPOSE 3306
+
+# CMD ["/usr/local/bin/setup.sh"]
+
 FROM debian:bullseye
 
-ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y \
+	mariadb-server
 
-RUN apt update -y && apt upgrade -y
+COPY ./conf/50-server.cnf /etc/mysql/mariadb.conf.d/.
+COPY ./tools/init.sql /etc/mysql/init.sql
 
-RUN apt install -y \
-	mariadb-server && \
-	rm -rf /var/lib/apt/lists/*
+RUN mkdir -p /run/mysqld
 
-# Copy script to initialize database
-COPY ./tools/setup_mariadb.sh /usr/local/bin/setup_mariadb.sh
-RUN chmod +x /usr/local/bin/setup_mariadb.sh
 
-# Copy MariaDB configuration file
-COPY ./conf/50-server.cnf /etc/mysql/mariadb.conf.d/50-server.cnf
-
-# Ensure MariaDB data directory exists and has correct permissions
-RUN mkdir -p /var/lib/mysql && \
-	chown -R mysql:mysql /var/lib/mysql && \
-	chmod -R 755 /var/lib/mysql
-
-# Run initialization script when container starts
-CMD [ "/usr/local/bin/setup_mariadb.sh" ]
+CMD [ "mysqld" ]

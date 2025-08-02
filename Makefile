@@ -1,26 +1,25 @@
-LOGIN = jnenczak
-SRCS = srcs
-DOCKER_COMPOSE_FILE = $(SRCS)/docker-compose.yml
-
 all: up
 
-build:
-	@echo "Building docker images..."
-	docker compose -f $(DOCKER_COMPOSE_FILE) build
+up:
+# 	mkdir -p /home/$$USER/data/wordpress
+# 	mkdir -p /home/$$USER/data/mariadb
+	docker compose -f srcs/docker-compose.yml up -d --build
 
-up: build
-	@echo "Starting services..."
-	docker compose -f $(DOCKER_COMPOSE_FILE) up -d
+ps:
+	docker compose -f srcs/docker-compose.yml ps
+
 
 down:
-	@echo "Stopping services..."
-	docker compose -f $(DOCKER_COMPOSE_FILE) down
+	docker compose -f srcs/docker-compose.yml down
+
+logs:
+	docker compose -f srcs/docker-compose.yml logs
 
 clean: down
-	@echo "Removing Docker images and volumes..."
-	docker system prune -f --volumes
-	docker rmi -f $(shell docker images -q --filter "dangling=true")
+	docker compose -f srcs/docker-compose.yml down --volumes
+# 	sudo rm -rf /home/$$USER/data/wordpress
+# 	sudo rm -rf /home/$$USER/data/mariadb
 
-re: clean all
+re: clean up
 
-.PHONY: all build up down clean re 
+.PHONY: all up down clean re

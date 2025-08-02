@@ -1,33 +1,28 @@
-FROM debian:11.11
+# FROM debian:bullseye
 
-ENV DEBIAN_FRONTEND=noninteractive
+# RUN apt-get update && apt-get install -y \
+#     nginx \
+#     openssl \
+#     && rm -rf /var/lib/apt/lists/*
 
-RUN apt update -y && apt upgrade -y
+# RUN mkdir -p /etc/nginx/ssl
 
-RUN apt install -y \
-	nginx \
-	openssl \
-	&& rm -rf /var/lib/apt/lists/*
+# RUN openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+#     -keyout /etc/nginx/ssl/nginx.key \
+#     -out /etc/nginx/ssl/nginx.crt \
+#     -subj "/C=IT/ST=Rome/L=Rome/O=42/OU=42/CN=${DOMAIN_NAME}"
 
-# Copy Custom NGINX configuration
-COPY ./conf/nginx.conf /etc/nginx/sites-available/default
-RUN chmod 644 /etc/nginx/sites-available/default
+# COPY conf/nginx.conf /etc/nginx/nginx.conf
 
-# Link the default site to be enabled
-RUN ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
+# EXPOSE 443
 
-# Generate SSL certificate and Key
-# This should be automated or securely handled in a real project, but for this exercise, we generate a self-signed one
-RUN openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-	-keyout /etc/ssl/certs/nginx-key.pem \
-	-out /etc/ssl/certs/nginx-certificate.pem \
-	-subj "/C=IT/ST=Lazio/L=Rome/O=Inception/OU=42/CN=${DOMAIN_NAME}"
+# CMD ["nginx", "-g", "daemon off;"]
 
-# Ensure correct permissions for SSL files
-RUN chmod 600 /etc/ssl/certs/nginx-key.pem && \
-	chmod 644 /etc/ssl/certs/nginx-certificate.pem
+FROM debian:bullseye
 
-EXPOSE 443
+RUN apt-get update && apt-get install -y \
+	nginx
 
-# Start NGINX in the foreground
-CMD ["nginx", "-g", "daemon off;"]
+COPY conf/nginx.conf /etc/nginx/sites-available/default
+
+CMD [ "nginx", "-g", "daemon off;" ]
