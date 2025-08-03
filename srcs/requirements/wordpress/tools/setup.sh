@@ -1,4 +1,20 @@
 #!/bin/bash
+
+# Wait for MariaDB to be ready before continuing
+wait_for_mariadb() {
+	echo "Waiting for MariaDB to be ready..."
+	
+	while ! mysqladmin ping -h mariadb -u "$MYSQL_USER" -p"$MYSQL_PASSWORD" --silent > /dev/null 2>&1; do
+		echo "MariaDB not ready yet, waiting 5 seconds..."
+		sleep 5
+	done
+	
+	echo "MariaDB is ready!"
+}
+
+# Call the function
+wait_for_mariadb
+
 set -e  # Exit on any error
 
 echo "Starting WordPress setup..."
@@ -8,7 +24,7 @@ echo "Current directory: $(pwd)"
 echo "Directory contents before setup: $(ls -la)"
 
 # Check if WordPress is already downloaded
-if [ ! -f "wp-config.php" ] || [ ! -d "wp-content" ]; then
+if [ ! -d "wp-content" ]; then
 	echo "WordPress not found. Downloading..."
 	
 	echo "Downloading wp-cli..."
@@ -18,10 +34,8 @@ if [ ! -f "wp-config.php" ] || [ ! -d "wp-content" ]; then
 	echo "Downloading WordPress core..."
 	./wp-cli.phar core download --allow-root
 
-	echo "Directory contents after WordPress download: $(ls -la)"
-
 	echo "Creating wp-config.php..."
-	./wp-cli.phar config create --dbname=$MYSQL_DATABASE --dbuser=$MYSQL_USER --dbpass=$MYSQL_PASSWORD --dbhost=mariadb --allow-root
+	./wp-cli.phar config create --dbname=$MYSQL_DATABASE --dbuser=$MYSQL_USER --dbpass=$MYSQL_PASSWORD --dbhost=mariadb:3306 --allow-root
 
 	echo "Installing WordPress..."
 	./wp-cli.phar core install --url=$DOMAIN_NAME --title=inception --admin_user=$WP_ADMIN_USER --admin_password=$WP_ADMIN_PASSWORD --admin_email=$WP_ADMIN_EMAIL --allow-root
