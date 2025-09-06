@@ -1,54 +1,55 @@
 #!/bin/bash
 
-# Wait for MariaDB to be ready before continuing
-wait_for_mariadb() {
-	echo "Waiting for MariaDB to be ready..."
-	
-	while ! mysqladmin ping -h mariadb -u "$MYSQL_USER" -p"$MYSQL_PASSWORD" --silent > /dev/null 2>&1; do
-		echo "MariaDB not ready yet, waiting 5 seconds..."
-		sleep 5
-	done
-	
-	echo "MariaDB is ready!"
-}
-
-# Call the function
-wait_for_mariadb
-
-set -e  # Exit on any error
-
-echo "Starting WordPress setup..."
-
+mkdir -p /var/www/html
 cd /var/www/html
-echo "Current directory: $(pwd)"
-echo "Directory contents before setup: $(ls -la)"
 
-# Check if WordPress is already downloaded
-if [ ! -d "wp-content" ]; then
-	echo "WordPress not found. Downloading..."
-	
-	echo "Downloading wp-cli..."
-	curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
-	chmod +x wp-cli.phar
-
-	echo "Downloading WordPress core..."
-	./wp-cli.phar core download --allow-root
-
-	echo "Creating wp-config.php..."
-	./wp-cli.phar config create --dbname=$MYSQL_DATABASE --dbuser=$MYSQL_USER --dbpass=$MYSQL_PASSWORD --dbhost=mariadb:3306 --allow-root
-
-	echo "Installing WordPress..."
-	./wp-cli.phar core install --url=$DOMAIN_NAME --title=inception --admin_user=$WP_ADMIN_USER --admin_password=$WP_ADMIN_PASSWORD --admin_email=$WP_ADMIN_EMAIL --allow-root
-
-	echo "Creating additional user..."
-	./wp-cli.phar user create $WP_USER $WP_USER_EMAIL --user_pass=$WP_USER_PASSWORD --allow-root
-else
-	echo "WordPress already installed, skipping installation..."
+if [ ! -f /usr/local/bin/wp ]; then
+    curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+    chmod +x wp-cli.phar
+    mv wp-cli.phar /usr/local/bin/wp
 fi
 
-echo "Setting correct permissions..."
-chown -R www-data:www-data /var/www/html
-chmod -R 755 /var/www/html
+if [ ! -f wp-config.php ]; then
+    wp core download --allow-root
 
+    mv wp-config-sample.php wp-config.php
+    sed -i "s|database_name_here|${MYSQL_DATABASE}|" wp-config.php
+    sed -i "s|username_here|${MYSQL_USER}|" wp-config.php
+    sed -i "s|password_here|${MYSQL_PASSWORD}|" wp-config.php
+    sed -i "s|localhost|mariadb|" wp-config.php
+fi
+
+echo "Waiting for database connection..."
+sleep 10
+
+if ! wp core is-installed --allow-root; then
+    if [[ "${WP_ADMIN_USER}" =~ [Aa]dmin|[Aa]dministrator ]]; then
+        echo "Error: Administrator username cannot contain 'admin', 'Admin', or 'administrator' ..."
+        exit 1
+    fi
+
+    wp core install \
+        --url="${DOMAIN_NAME}" \
+        --title="${TITLE}" \
+        --admin_user="${WP_ADMIN_USER}" \
+        --admin_password="${WP_ADMIN_PASSWORD}" \
+        --admin_email="${WP_ADMIN_EMAIL}" \
+        --skip-email \
+        --allow-root
+
+    wp user create \
+        "${WP_USER}" "${WP_USER_EMAIL}" \
+        --user_pass="${WP_USER_PASSWORD}" \
+        --role=editor \
+        --allow-root
+fi
+
+if ! wp theme is-installed twentytwentyfour --allow-root; then
+    wp theme install twentytwentyfour --activate --allow-root
+else
+    wp theme activate twentytwentyfour --allow-root
+fi
+
+mkdir -p /run/php
 echo "Starting PHP-FPM..."
 php-fpm7.4 -F

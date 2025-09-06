@@ -1,15 +1,15 @@
 all: up
 
 build:
-# 	mkdir -p /home/$$USER/data/wordpress
-# 	mkdir -p /home/$$USER/data/mariadb
+	mkdir -p /home/$$USER/data/wordpress
+	mkdir -p /home/$$USER/data/mariadb
 	docker compose -f srcs/docker-compose.yml build --no-cache
 
 rebuild: fclean build up
 
 up:
-# 	mkdir -p /home/$$USER/data/wordpress
-# 	mkdir -p /home/$$USER/data/mariadb
+	mkdir -p /home/$$USER/data/wordpress
+	mkdir -p /home/$$USER/data/mariadb
 	docker compose -f srcs/docker-compose.yml up -d
 
 ps:
@@ -27,8 +27,8 @@ clean: down
 	docker compose -f srcs/docker-compose.yml down --volumes
 
 fclean: clean
-# 	sudo rm -rf /home/$$USER/data/wordpress
-# 	sudo rm -rf /home/$$USER/data/mariadb
+	sudo rm -rf /home/$$USER/data/wordpress
+	sudo rm -rf /home/$$USER/data/mariadb
 
 re: clean up
 

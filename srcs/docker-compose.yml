@@ -6,8 +6,6 @@ services:
       - "443:443"
     volumes:
       - wordpress_data:/var/www/html
-    networks:
-      - inception
     depends_on:
       - wordpress
     healthcheck:
@@ -23,8 +21,6 @@ services:
     container_name: wordpress
     volumes:
       - wordpress_data:/var/www/html
-    networks:
-      - inception
     depends_on:
       - mariadb
     environment:
@@ -52,8 +48,6 @@ services:
     container_name: mariadb
     volumes:
       - mariadb_data:/var/lib/mysql
-    networks:
-      - inception
     environment:
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
       - MYSQL_DATABASE=${MYSQL_DATABASE}
@@ -70,17 +64,14 @@ services:
 volumes:
   wordpress_data:
     driver: local
-    # driver_opts:
-    #   type: none
-    #   o: bind
-    #   device: /home/${USER}/data/wordpress
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/${USER}/data/wordpress
   mariadb_data:
     driver: local
-    # driver_opts:
-    #   type: none
-    #   o: bind
-    #   device: /home/${USER}/data/mariadb
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/${USER}/data/mariadb
 
-networks:
-  inception:
-    driver: bridge
