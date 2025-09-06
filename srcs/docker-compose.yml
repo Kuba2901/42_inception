@@ -1,72 +1,77 @@
 services:
   nginx:
+    build: ./requirements/nginx
     container_name: nginx
-    build:
-      context: ./requirements/nginx
-      dockerfile: Dockerfile
     ports:
-      - "${NGINX_PORT}:${NGINX_PORT}"
+      - "443:443"
     volumes:
-      - wordpress_files:/var/www/html
+      - wordpress_data:/var/www/html
     depends_on:
       - wordpress
-    networks:
-      - inception_network
-    restart: on-failure
-    env_file:
-      - .env # Load environment variables
+    healthcheck:
+      test: ["CMD", "curl", "-f", "-k", "https://${DOMAIN_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
 
   wordpress:
+    build: ./requirements/wordpress
     container_name: wordpress
-    build:
-      context: ./requirements/wordpress # Path to your WordPress Dockerfile
-      dockerfile: Dockerfile
-      args:
-        DEBIAN_VERSION: "bullseye" # Debian 11 codename
-    image: wordpress_image:1.0
     volumes:
-      - wordpress_files:/var/www/html # Mount WordPress files from shared volume
+      - wordpress_data:/var/www/html
     depends_on:
       - mariadb
-    networks:
-      - inception_network
-    restart: on-failure
-    env_file:
-      - .env # Load environment variables
+    environment:
+      - MYSQL_HOST=mariadb
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - WP_ADMIN_USER=${WP_ADMIN_USER}
+      - WP_ADMIN_PASSWORD=${WP_ADMIN_PASSWORD}
+      - WP_ADMIN_EMAIL=${WP_ADMIN_EMAIL}
+      - WP_USER=${WP_USER}
+      - WP_USER_PASSWORD=${WP_USER_PASSWORD}
+      - WP_USER_EMAIL=${WP_USER_EMAIL}
+      - DOMAIN_NAME=${DOMAIN_NAME}
+    healthcheck:
+      test: ["CMD", "php", "-f", "/var/www/html/wp-admin/install.php"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
 
   mariadb:
+    build: ./requirements/mariadb
     container_name: mariadb
-    build:
-      context: ./requirements/mariadb # Path to your MariaDB Dockerfile
-      dockerfile: Dockerfile
-      args:
-        DEBIAN_VERSION: "bullseye" # Debian 11 codename
-    image: mariadb_image:1.0
     volumes:
-      - mariadb_data:/var/lib/mysql # Volume for database persistence 
-    networks:
-      - inception_network
-    restart: on-failure
-    env_file:
-      - .env # Load environment variables
+      - mariadb_data:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u${MYSQL_USER}", "-p${MYSQL_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
 
 volumes:
+  wordpress_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/${USER}/data/wordpress
   mariadb_data:
     driver: local
-    # Ensure this path matches the requirement for /home/login/data 
-    # You will need to manually create /home/your_login/data/mariadb_data on your host VM.
-    # Replace 'your_login_here' with your actual 42 login.
-    # Example for VM path: /home/your_login_here/data/mariadb_data
-    # This example assumes you'll manage the host path for the volume.
-    # A simpler approach in docker-compose is to just declare the volume without a specific host path,
-    # and Docker will manage it in its default location (usually /var/lib/docker/volumes/...).
-    # If the exact host path is critical for evaluation, ensure you map it correctly.
-    # For now, we'll let Docker manage it, assuming /home/login/data is for *accessing* the volume, not its physical host location.
-  wordpress_files:
-    driver: local
-    # Similarly, for WordPress files 
-    # Example for VM path: /home/your_login_here/data/wordpress_files
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/${USER}/data/mariadb
 
-networks:
-  inception_network:
-    driver: bridge

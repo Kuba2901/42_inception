@@ -63,3 +63,4 @@ Temporary Items
 .vscode
 secrets/
 srcs/.env
+data/

@@ -1,24 +1,12 @@
 FROM debian:bullseye
 
-ENV DEBIAN_FRONTEND=noninteractive
+RUN apt update -y && apt upgrade -y && \
+    apt install -y mariadb-server && \
+    apt clean && rm -rf /var/lib/apt/lists/*
 
-RUN apt update -y && apt upgrade -y
+COPY conf/50-server.cnf /etc/mysql/mariadb.conf.d/50-server.cnf
+COPY tools/setup.sh /usr/local/bin/setup.sh
 
-RUN apt install -y \
-	mariadb-server && \
-	rm -rf /var/lib/apt/lists/*
+RUN chmod +x /usr/local/bin/setup.sh
 
-# Copy script to initialize database
-COPY ./tools/setup_mariadb.sh /usr/local/bin/setup_mariadb.sh
-RUN chmod +x /usr/local/bin/setup_mariadb.sh
-
-# Copy MariaDB configuration file
-COPY ./conf/50-server.cnf /etc/mysql/mariadb.conf.d/50-server.cnf
-
-# Ensure MariaDB data directory exists and has correct permissions
-RUN mkdir -p /var/lib/mysql && \
-	chown -R mysql:mysql /var/lib/mysql && \
-	chmod -R 755 /var/lib/mysql
-
-# Run initialization script when container starts
-CMD [ "/usr/local/bin/setup_mariadb.sh" ]
+CMD ["/usr/local/bin/setup.sh"]
