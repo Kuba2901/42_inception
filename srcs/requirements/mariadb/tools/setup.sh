@@ -1,40 +1,33 @@
 #!/bin/bash
+set -e
 
-service mariadb start;
+INIT_MARKER="/var/lib/mysql/.mariadb_initialized"
 
-sleep 5;
+if [ ! -f "$INIT_MARKER" ]; then
 
-cat > /tmp/init.sql << 'SQL'
-CREATE DATABASE IF NOT EXISTS `${MYSQL_DATABASE}`;
--- Ensure application user exists for remote and localhost connections
-CREATE USER IF NOT EXISTS `${MYSQL_USER}`@'%' IDENTIFIED BY '${MYSQL_PASSWORD}';
-CREATE USER IF NOT EXISTS `${MYSQL_USER}`@'localhost' IDENTIFIED BY '${MYSQL_PASSWORD}';
--- Keep application user password in sync with current env
-ALTER USER '${MYSQL_USER}'@'%' IDENTIFIED BY '${MYSQL_PASSWORD}';
-ALTER USER '${MYSQL_USER}'@'localhost' IDENTIFIED BY '${MYSQL_PASSWORD}';
-GRANT ALL PRIVILEGES ON `${MYSQL_DATABASE}`.* TO '${MYSQL_USER}'@'%';
-GRANT ALL PRIVILEGES ON `${MYSQL_DATABASE}`.* TO '${MYSQL_USER}'@'localhost';
--- Ensure local root uses password auth (disable unix_socket for root@localhost)
-ALTER USER 'root'@'localhost' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}';
--- Keep remote root user in sync as well
-CREATE USER IF NOT EXISTS 'root'@'%';
-ALTER USER 'root'@'%' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}';
-GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;
-FLUSH PRIVILEGES;
-SQL
+mariadbd-safe &
 
-# Prefer password auth; fall back to socket/no-password for first boot
-if mysql -u root -p"${MYSQL_ROOT_PASSWORD}" -e "SELECT 1" >/dev/null 2>&1; then
-    mysql -u root -p"${MYSQL_ROOT_PASSWORD}" < /tmp/init.sql
+until mysqladmin ping --silent; do
+echo "waiting for mariadb"
+  sleep 1
+done
+
+echo "set root password and auth plugin"
+mariadb -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED VIA mysql_native_password USING PASSWORD('${MYSQL_ROOT_PASSWORD}'); FLUSH PRIVILEGES;"
+
+echo "create database and user"
+mariadb -u root -p"${MYSQL_ROOT_PASSWORD}" -e "CREATE DATABASE IF NOT EXISTS \`${MYSQL_DATABASE}\`;"
+mariadb -u root -p"${MYSQL_ROOT_PASSWORD}" -e "CREATE USER IF NOT EXISTS '${MYSQL_USER}'@'%' IDENTIFIED BY '${MYSQL_PASSWORD}';"
+mariadb -u root -p"${MYSQL_ROOT_PASSWORD}" -e "GRANT ALL PRIVILEGES ON \`${MYSQL_DATABASE}\`.* TO '${MYSQL_USER}'@'%';"
+mariadb -u root -p"${MYSQL_ROOT_PASSWORD}" -e "FLUSH PRIVILEGES;"
+
+echo "shutdown for clean restart"
+mariadb-admin -u root -p"${MYSQL_ROOT_PASSWORD}" shutdown
+
+touch "$INIT_MARKER"
 else
-    mysql -u root < /tmp/init.sql
+    echo "database already exist"
 fi
 
-# Clean shutdown of the temp server before starting mysqld_safe
-if mysql -u root -p"${MYSQL_ROOT_PASSWORD}" -e "SELECT 1" >/dev/null 2>&1; then
-    mysqladmin -u root -p"${MYSQL_ROOT_PASSWORD}" shutdown;
-else
-    mysqladmin -u root shutdown;
-fi
-
-exec mysqld_safe;
+echo "starting mariadb"
+exec "$@"
