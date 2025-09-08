@@ -1,17 +1,33 @@
 #!/bin/bash
+set -e
 
-service mariadb start;
+INIT_MARKER="/var/lib/mysql/.mariadb_initialized"
 
-sleep 5;
+if [ ! -f "$INIT_MARKER" ]; then
 
-mysql -u root << EOF
-CREATE DATABASE IF NOT EXISTS \`${MYSQL_DATABASE}\`;
-CREATE USER IF NOT EXISTS \`${MYSQL_USER}\`@'%' IDENTIFIED BY '${MYSQL_PASSWORD}';
-GRANT ALL PRIVILEGES ON \`${MYSQL_DATABASE}\`.* TO '${MYSQL_USER}'@'%';
-GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' IDENTIFIED BY '${MYSQL_ROOT_PASSWORD}' WITH GRANT OPTION;
-FLUSH PRIVILEGES;
-EOF
+mariadbd-safe &
 
-mysqladmin -u root -p"${MYSQL_ROOT_PASSWORD}" shutdown;
+until mysqladmin ping --silent; do
+echo "waiting for mariadb"
+  sleep 1
+done
 
-exec mysqld_safe;
+echo "set root password and auth plugin"
+mariadb -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED VIA mysql_native_password USING PASSWORD('${MYSQL_ROOT_PASSWORD}'); FLUSH PRIVILEGES;"
+
+echo "create database and user"
+mariadb -u root -p"${MYSQL_ROOT_PASSWORD}" -e "CREATE DATABASE IF NOT EXISTS \`${MYSQL_DATABASE}\`;"
+mariadb -u root -p"${MYSQL_ROOT_PASSWORD}" -e "CREATE USER IF NOT EXISTS '${MYSQL_USER}'@'%' IDENTIFIED BY '${MYSQL_PASSWORD}';"
+mariadb -u root -p"${MYSQL_ROOT_PASSWORD}" -e "GRANT ALL PRIVILEGES ON \`${MYSQL_DATABASE}\`.* TO '${MYSQL_USER}'@'%';"
+mariadb -u root -p"${MYSQL_ROOT_PASSWORD}" -e "FLUSH PRIVILEGES;"
+
+echo "shutdown for clean restart"
+mariadb-admin -u root -p"${MYSQL_ROOT_PASSWORD}" shutdown
+
+touch "$INIT_MARKER"
+else
+    echo "database already exist"
+fi
+
+echo "starting mariadb"
+exec "$@"
